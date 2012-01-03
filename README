@@ -1,0 +1,28 @@
+GPS Clustering
+--------------
+
+As used for a cougar PHd research project by Kyle Knopff, this code
+takes a naive and slow apporach to clustering data from GPS collars.
+
+This takes as input a CSV file of GPS-collar fixes. A typical such
+file looks like this:
+
+   FIX_#,CASE,GMT_DATE,GMT_TIME,LMT_DATE,LMT_TIME,N7,N8,N9,LATITUDE,LONGITUDE,HEIGHT,N13,N14,N15,N16,N17,N18,N19,N20,N21,N22,N23,N24,N25,N26,N27,N28,N29,N30,N31,N32,N33,N34,N35,N36,N37,N38,N39,N40,N41,N42,N43,N44,N45,N46
+   2,1,2/18/2006,22:04:18,2/18/2006,22:04:18,-1710094,-3498899,5035956,52.47025,-116.04717,1396.71,6.4,3D,Yes,5,15,41,16,41,21,35,26,38,29,35,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3.42,3.56,11,N/A,N/A,N/A
+   4,1,2/19/2006,4:01:24,2/19/2006,4:01:24,-1710121,-3498898,5035938,52.47007,-116.04753,1389.11,4,3D,Yes,5,1,41,11,41,14,38,20,38,25,35,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3.42,3.62,19,N/A,N/A,N/A
+
+The file-reading code presumes the first line of the file is
+column-headers and discards it.
+
+If you wish to change how the data is parsed, see the constructor for
+FixPoint, which gets a tuple containing all the data from one
+line. Currently, it only parses out the following columns:
+
+   0: fix number
+   1: "case"
+   4 + 5: time of the fix
+   9 + 10: latitude and longitude
+   11: height (actually not used currently)
+
+There are a couple of options you may want to change; see "OPTIONS"
+near the top of the script.

@@ -58,11 +58,12 @@ import os.path
 
 # approximate target cluster radius, in meters (depends a little on
 # the method selected below).
-CLUSTER_RADIUS = 200
-
+CLUSTER_RADIUS = 25
+#ATF changed this from 200 to 25 following augstine 2003, "Spatial Heterogeneity in the Herbaceous Layer of a Semi-Arid Savanna Ecosystem"
+#ATF changed CLUSTERMETHODS to 'centroid'
 # available clustering methods; see around line 200 for more
 # explanation
-CLUSTER_METHODS = ['any', 'all', 'centroid']
+CLUSTER_METHODS = ['centroid']
 CLUSTER_METHOD = CLUSTER_METHODS[0]
 
 # debugging stuff
@@ -167,14 +168,14 @@ class FixPoint:
         """
 
         if 0:
-            # return time difference based on fix number (3 hours apart)
-            return math.fabs( (self.number*3) - (other.number*3) )
+            # return time difference based on fix number (3 hours apart), atf changed to 600, as in 600 secs = 10min
+            return math.fabs( (self.number*600) - (other.number*600) )
 
         else:
             # actual seconds-based time difference
             seconds = other.time - self.time
             seconds = math.fabs(seconds)
-            return seconds / (60.0*60.0)           # return hours
+            return seconds            # return hours ATF changed to nothing, returns seconds.
 
     def __str__(self):
         if self.latlng:
@@ -188,6 +189,12 @@ class FixPoint:
 ## This represents a cluster, obviously
 ##
 
+#########ATF CHANGED BELOW: changed (self.points[-1].timedelta(a) <= 24*6) or (self.points[0].timedelta(a) <= 24*6):
+###if (self.points[-1].timedelta(a) <= 3600) or (self.points[0].timedelta(a) <= 3600):
+   ##             return True
+     ##       if (self.points[-1].timedelta(b) <= 1.0) or (self.points[0].timedelta(b) <= 1.0):
+       ##         return True    
+
 class Cluster:
     def __init__(self):
         self.points = []
@@ -196,14 +203,15 @@ class Cluster:
     def clusterInCluster(self,c):
         """returns True if the other cluster c is"inside" this one
         (i.e. if they can be merged); centroids must be within CLUSTER_RADIUS
-        and the points must be within 6 days"""
+        and the points must be within 6 days
+        """
         
         if greatCircleDistance(self.centroid(),c.centroid()) < CLUSTER_RADIUS:
             a = c.points[0]
             b = c.points[-1]
-            if (self.points[-1].timedelta(a) <= 6*24.0) or (self.points[0].timedelta(a) <= 6*24.0):
+            if (self.points[-1].timedelta(a) <= 3600) or (self.points[0].timedelta(a) <= 3600):
                 return True
-            if (self.points[-1].timedelta(b) <= 6*24.0) or (self.points[0].timedelta(b) <= 6*24.0):
+            if (self.points[-1].timedelta(b) <= 3600) or (self.points[0].timedelta(b) <= 3600):
                 return True
         return False
     
@@ -216,14 +224,16 @@ class Cluster:
     def pointInCluster(self,p):
         if p.latlng is None:
             return False
+
+###ATF changed below "<= 6*24.0" to "<= 1.0"
         
         if len(self.points) == 0:
             return False
         elif len(self.points) == 1:
-            timeok = (self.points[-1].timedelta(p) <= 6*24.0) or (self.points[0].timedelta(p) <= 6*24.0)
+            timeok = (self.points[-1].timedelta(p) <= 3600) or (self.points[0].timedelta(p) <= 3600)
             return (self.points[0].distance(p) < CLUSTER_RADIUS) and timeok
         else:
-            timeok = (self.points[-1].timedelta(p) <= 6*24.0) or (self.points[0].timedelta(p) <= 6*24.0)
+            timeok = (self.points[-1].timedelta(p) <= 3600) or (self.points[0].timedelta(p) <= 3600)
             if CLUSTER_METHOD == 'any':
                 # method "is new point within CLUSTER_RADIUS m of ANY point currently in the cluster"?
                 for x in self.points:
@@ -242,7 +252,7 @@ class Cluster:
 
             if CLUSTER_METHOD == 'centroid':
                 # method "is new point within CLUSTER_RADIUS m of current centroid of cluster"?
-                return p.distance(self.centroid()) < CLUSTER_RADIUS #and self.points[-1].timedelta(p) < 6*24.0
+                return p.distance(self.centroid()) < CLUSTER_RADIUS #and self.points[-1].timedelta(p) < 1.0 <- ATF CHANGED COMMENT to 1.0 from 24.0
 
         # default, not in cluster
         return False
@@ -340,7 +350,7 @@ class Cluster:
             return (away,bonus)
         return away
 
-    def numberOf24HourPeriods(self):
+    def numberOfhours(self):
         """
         Kyle: The number of 24 hour periods where a fix was obtained
         at the cluster.  For example, a cluster might have 8 points
@@ -355,12 +365,12 @@ class Cluster:
         of the first fix (i.e. if there was a fix at 11:30pm and two
         more at 2am, they'd only be on one"day")
         """
-
-        daystarts = []
+###ATF changed 24*60*60 to (60*60) so is by hour (3600 secs) not day buckets....
+        hourstarts = []
         for x in self.points:
-            if len(daystarts) == 0 or x.time > daystarts[-1] + (24*60*60):
-                daystarts.append(x.time)
-        return len(daystarts)
+            if len(hourstarts) == 0 or x.time > hourstarts[-1] + (60*60):
+                hourstarts.append(x.time)
+        return len(hourstarts)
             
 
     def __eq__(self,other):
@@ -541,7 +551,7 @@ def processFile(fname):
         if True:
             ## write cluster data to a .csv file
             csvfile = open(os.path.splitext(fname)[0] + '-mikeclusters.csv','w')
-            csvfile.write('''"first fix number","first fix LMT","last fix number","theoretical total points","actual number of points","points away","fix success","time span (hours)","day-periods","average distance (m)","cluster radius (m)","centroid latitude","centroid longitude","all fix numbers in cluster","all away points"\n''')
+            csvfile.write('''"first fix number","first fix LMT","last fix number","theoretical total points","actual number of points","points away","fix success","time span (hours)","hour-periods","average distance (m)","cluster radius (m)","centroid latitude","centroid longitude","all fix numbers in cluster","all away points"\n''')
             for x in clusters:
                 totalpoints = x.totalTheoreticalPoints()
                 assert (x.missingPoints() >= 0)
@@ -550,8 +560,8 @@ def processFile(fname):
                 awaypoints = ' '.join(map(str,awaypoints))
                 
                 fixsuccess = ((float(totalpoints) - (totalpoints - (awayfixes+len(x.points)))) / float(totalpoints)) * 100.0
-                days = x.numberOf24HourPeriods()
-                csvfile.write('%d,%s,%d,%d,%d,%d,%f,%d,%d,%d,%d,%f,%f,%s,%s\n' % (x.points[0].number,x.points[0].lmt,x.points[-1].number,totalpoints,len(x.points),awayfixes,fixsuccess,x.totalTime(),days,int(x.averageDistanceFromCentroid()),int(x.maxDistanceFromCentroid()),x.centroid()[0],x.centroid()[1],x.allFixNumbers(),awaypoints))
+                hours = x.numberOfhours()
+                csvfile.write('%d,%s,%d,%d,%d,%d,%f,%d,%d,%d,%d,%f,%f,%s,%s\n' % (x.points[0].number,x.points[0].lmt,x.points[-1].number,totalpoints,len(x.points),awayfixes,fixsuccess,x.totalTime(),hours,int(x.averageDistanceFromCentroid()),int(x.maxDistanceFromCentroid()),x.centroid()[0],x.centroid()[1],x.allFixNumbers(),awaypoints))
             csvfile.close()
 
         if GOOGLE_MAP:
@@ -621,4 +631,3 @@ if __name__ == "__main__":
                 print 'Skipping "%s" because it doesn\'t end in .csv' % x
 
         raw_input('press return')
-
